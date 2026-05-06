@@ -13,7 +13,6 @@ uv pip install -r requirements.txt \
   --extra-index-url https://download.pytorch.org/whl/cu130
 ```
 
-(Plain `pip` works the same after `python -m ensurepip --upgrade`.)
 
 ### data and model
 
@@ -26,10 +25,10 @@ Place the trained LoRA adapter at `./models/<run-name>/`, and update `LORA_PATH`
 
 Expected layout:
 ```
-./model/Qwen3.5-9B/             base model
+./model/Qwen3.5-9B/              base model
 ./models/<run-name>/             LoRA adapter
-./data/dataset_info.json     dataset JSON
-./data/images/                  images
+./data/dataset_info.json         dataset JSON
+./data/images/                   images
 ```
 
 All paths are configured via globals at the top of `inference.py`:
