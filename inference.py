@@ -17,6 +17,8 @@ MAX_LORA_RANK = 16
 INVALID_FALLBACK = "A"
 VALID_ANSWERS = {"A", "B", "C", "D", "E"}
 
+# prompt translation: analyze the question, all choices and the visual elements(if exist), and answer only one choice: A, B, C, D or E.
+# note: no <think> label in the prompt as by default the model would automatically append it.
 PROMPT_TEXT = """分析这道题的题目、所有选项和存在的视觉元素（如有），仅回答一个选项：A、B、C、D或E。"""
 
 
