@@ -29,16 +29,33 @@ export HF_TOKEN=...
 
 `run_inference.py` 和 `evaluate.py` 不需要手动下载任何东西。`run_inference.py` 会自己从 Hugging Face 拉测试集的 parquet，模型按名字加载，有 `HF_TOKEN` 就够。
 
-`submit.py` 读的是本地副本，需要下面这个结构：
+`submit.py` 读的是本地副本：一份每题一条的 JSON，加一个每题一张图的目录。两个数据集都把图片以字节形式放在 parquet 里，所以先用 `extract_images.py` 抽出来：
+
+```bash
+hf download Qwen/Qwen3.5-9B --local-dir ./model/Qwen3.5-9B
+
+# 两个数据集都可以，这里用 EXAMS-V 的 validation split
+hf download MBZUAI/EXAMS-V --repo-type dataset --local-dir ./data
+
+python extract_images.py \
+  --parquet './data/validation-*.parquet' \
+  --out_json ./data/validation_data.json \
+  --image_dir ./data/images \
+  --gold_json ./data/validation_gold.json
+
+python submit.py
+```
+
+`extract_images.py` 把每行的图片写成 `<image_dir>/<id>.png`，把该行的 `image` 字段替换成这个文件名，再补一个 `id` 字段，取值来自 parquet 里 `sample_id`、`question_id`、`id` 中存在的那一个。`--gold_json` 可选，另写一份 `id` 到 `answer` 的对照，用来本地打分。
+
+抽完之后的结构：
 
 | 路径 | 内容 |
 |---|---|
-| `./model/Qwen3.5-9B/` | base 模型 —— `hf download Qwen/Qwen3.5-9B --local-dir ./model/Qwen3.5-9B` |
+| `./model/Qwen3.5-9B/` | base 模型 |
 | `./models/<run-name>/` | LoRA adapter，设了 `LORA_PATH` 时需要 |
 | `./data/validation_data.json` | 每题一条，用 `id` 作为键 |
-| `./data/images/` | 每题一张图，文件名取该条的 `image` 字段，没有这个字段时用 `<id>.png` |
-
-Hugging Face 上的数据集只发布一个 parquet 文件 `data/test-00000-of-00001.parquet`，得不到上面这个结构。`submit.py` 对应的是任务方自己发布的那份数据，与他们 `src/baselines/` 脚本接受的 JSON 加图片目录结构相同。
+| `./data/images/` | 每题一张图，文件名取该条的 `image` 字段 |
 
 ## 运行
 
@@ -82,6 +99,7 @@ python run_inference.py \
 | `run_inference.py` | 下载测试集 parquet，用 vLLM 贪心解码跑完 1117 题，每题写一行 JSONL，含原始输出。不打分 |
 | `evaluate.py` | 套用抽取规则，报总体以及分语言、分学科的准确率、invalid 率、回答长度 |
 | `normalize_subject.py` | 32 种学科写法归到 9 类，被 `evaluate.py` 引用 |
+| `extract_images.py` | 把 parquet 里以字节形式存放的图片抽成文件，同时生成 `submit.py` 读的那份 JSON |
 | `submit.py` | 提交用的推理。可断点续跑，每批之后按官方格式写一次 `submission.json` |
 | `requirements.txt` | 环境冻结 |
 

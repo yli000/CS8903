@@ -30,18 +30,36 @@ export HF_TOKEN=...
 `run_inference.py` and `evaluate.py` need nothing downloaded by hand. `run_inference.py` fetches the test
 parquet from the Hugging Face dataset and loads the model by name, so `HF_TOKEN` is enough.
 
-`submit.py` reads a local copy instead, and expects this layout:
+`submit.py` reads a local copy instead, one JSON entry per question plus one image file per question.
+Both datasets ship the images as bytes inside the parquet, so `extract_images.py` unpacks them first:
+
+```bash
+hf download Qwen/Qwen3.5-9B --local-dir ./model/Qwen3.5-9B
+
+# either dataset works; this is the EXAMS-V validation split
+hf download MBZUAI/EXAMS-V --repo-type dataset --local-dir ./data
+
+python extract_images.py \
+  --parquet './data/validation-*.parquet' \
+  --out_json ./data/validation_data.json \
+  --image_dir ./data/images \
+  --gold_json ./data/validation_gold.json
+
+python submit.py
+```
+
+`extract_images.py` writes each row's image to `<image_dir>/<id>.png`, replaces the row's `image` field
+with that filename, and adds an `id` field taken from whichever of `sample_id`, `question_id` or `id` the
+parquet uses. `--gold_json` is optional and writes an `id` → `answer` file for local scoring.
+
+The resulting layout:
 
 | path | contents |
 |---|---|
-| `./model/Qwen3.5-9B/` | base model — `hf download Qwen/Qwen3.5-9B --local-dir ./model/Qwen3.5-9B` |
+| `./model/Qwen3.5-9B/` | base model |
 | `./models/<run-name>/` | LoRA adapter, when `LORA_PATH` is set |
 | `./data/validation_data.json` | one entry per question, keyed by `id` |
-| `./data/images/` | one image per question, named by the entry's `image` field, or `<id>.png` when it has none |
-
-The Hugging Face dataset ships a single parquet file, `data/test-00000-of-00001.parquet`, so it does not
-produce that layout. `submit.py` matches the organizers' own release, the same JSON-plus-image-folder
-shape their `src/baselines/` scripts take.
+| `./data/images/` | one image per question, named by the entry's `image` field |
 
 ## Run
 
@@ -85,6 +103,7 @@ At 32k context the default concurrency will not fit in the KV cache, so `--max_n
 | `run_inference.py` | Downloads the test parquet, runs vLLM greedy over all 1117 questions, writes one JSONL line per question with the raw completion. No scoring |
 | `evaluate.py` | Applies the extraction rule, reports accuracy, invalid rate and completion length, overall and by language and subject |
 | `normalize_subject.py` | 32 subject spellings → 9 canonical subjects. Used by `evaluate.py` |
+| `extract_images.py` | Unpacks the images held as bytes inside a parquet into files, plus the JSON `submit.py` reads |
 | `submit.py` | Submission inference. Resumable, writes `submission.json` in the official format after every batch |
 | `requirements.txt` | Environment freeze |
 
