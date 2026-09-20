@@ -1,67 +1,66 @@
-# README
+English | [中文](README.zh-CN.md)
 
-## how to run
+# GRPO Fine-Tuning of Qwen3.5-9B for ImageCLEF 2026 Multimodal Reasoning task (MCQ track)
 
-### environment
+Code for Qwen baseline and GRPO finetuning of [our working notes](https://clef-staging.pages.dev/paper272.pdf) in the imageCLEF 2026's multimodal reasoning task, MCQ track.
 
-Python 3.12, GPU host with an NVIDIA driver supporting CUDA 13.
+The task is to answer multilingual, multi-subject exam questions given as a single image containing the stem (pure text or with visuals), and multiple options.
 
-```bash
-uv venv --python 3.12 && source .venv/bin/activate
-uv pip install -r requirements.txt \
-  --extra-index-url https://wheels.vllm.ai/nightly \
-  --extra-index-url https://download.pytorch.org/whl/cu130
-```
+## Layout
 
-
-### data and model
-
-```bash
-hf download Qwen/Qwen3.5-9B --local-dir ./model/Qwen3.5-9B
-hf download SU-FMI-AI/ImageCLEF-MR2026-MCQ-Visual --repo-type dataset --local-dir ./data
-```
-
-Place the trained LoRA adapter at `./models/<run-name>/`, and update `LORA_PATH` in `inference.py` to match. An empty string disables LoRA.
-
-Expected layout:
-```
-./model/Qwen3.5-9B/              base model
-./models/<run-name>/             LoRA adapter
-./data/dataset_info.json         dataset JSON
-./data/images/                   images
-```
-
-All paths are configured via globals at the top of `inference.py`:
-
-| variable | meaning |
+| Folder | Contents |
 |---|---|
-| `MODEL_PATH` | base model directory |
-| `LORA_PATH` | LoRA adapter directory (`""` disables) |
-| `MAX_LORA_RANK` | must match the rank used at training time |
-| `DATA_JSON_PATH` | dataset JSON |
-| `IMAGE_DIR` | image folder |
-| `OUTPUT_JSON_PATH` | raw model output |
-| `SUBMISSION_JSON_PATH` | competition submission output |
-| `TEST_MODE` | `True` runs only `TEST_SAMPLE_COUNT` samples |
+| [`baseline/`](baseline) | Zero-shot Qwen3.5 inference, scoring, submission formatting |
+| [`experiment/`](experiment) | GRPO training with veRL: environment, data prep, reward, launch script, checkpoint merging |
 
-### run
+`experiment/` produces a merged model. `baseline/run_inference.py` and `baseline/evaluate.py` then score it the same way they score the baselines.
 
-```bash
-bash inference.sh
+Code comments are in Chinese.
+
+## Data
+
+Both datasets are gated. Set `HF_TOKEN` in the environment.
+
+| | |
+|---|---|
+| Training | [`MBZUAI/EXAMS-V`](https://huggingface.co/datasets/MBZUAI/EXAMS-V), train + validation splits, `type == image_text` |
+| Evaluation | [`SU-FMI-AI/ImageCLEF-MR2026-MCQ-Visual`](https://huggingface.co/datasets/SU-FMI-AI/ImageCLEF-MR2026-MCQ-Visual), official test set, 1117 questions |
+
+Test set languages: English 500, Chinese 342, Bulgarian 110, Croatian 57, Italian 54, Serbian 54.
+
+The `subject` field has 32 spellings across languages. `baseline/normalize_subject.py` maps them onto 9 canonical subjects by the earliest-occurring keyword in the string, so `Science (Physics, Chemistry)` → Physics and `Science (Chemistry/Biology)` → Chemistry.
+
+The `answer_key` field has 23 surface forms: Latin `A`-`E`, Cyrillic `А`-`Д`, digits `1`-`5`, both cases. All normalized before comparison.
+
+## Scoring
+
+The training reward and the evaluation use one extraction rule. A response is correct only if:
+
+1. it contains a closed `</think>`;
+2. `ANSWER: X`, `FINAL ANSWER: X`, `答案：X`, or a line holding only the letter appears in the last 5 non-empty lines after that tag;
+3. the letter matches the ground truth.
+
+Anything else is `INVALID` and counts as wrong in the denominator.
+
+## References
+
+- Task organizers' repo — [mbzuai-nlp/ImageCLEF-MultimodalReasoning](https://github.com/mbzuai-nlp/ImageCLEF-MultimodalReasoning/tree/main/2026/src). `baseline/` follows its `src/baselines/` and `src/evaluation/` structure, adapted to Qwen3.5 and offline vLLM batch inference.
+- veRL — [docs](https://verl.readthedocs.io/en/latest/start/quickstart.html) · [examples](https://github.com/verl-project/verl/tree/main/examples)
+- Working notes — [paper272.pdf](https://clef-staging.pages.dev/paper272.pdf)
+
+## Citation
+
+```bibtex
+@inproceedings{li2026dsgt,
+  title     = {DS@GT at ImageCLEF 2026 MultimodalReasoning: Visual Multiple Choice
+               Question Reasoning with Vision-Language Models},
+  author    = {Li, Yue and Liu, Zhanxu and Zhang, Chengxi},
+  booktitle = {CLEF 2026 Working Notes},
+  address   = {Jena, Germany},
+  year      = {2026}
+}
 ```
 
-Writes `./results/predictions.json` (raw output) and `./results/submission.json` (competition format). `INVALID` means the model exhausted its reasoning budget without emitting a final A-E choice; the submission writer falls back to `"A"` so the file always validates.
+## License
 
-## results
-
-### CLEF
-
-Official results released after May 10 (date may be extended).
-
-### Local
-
-baseline: 0.7757 (first GRPO run shows no improvement)
-
-## next steps
-
-RL experiments for model's over-thinking problem (see report).
+MIT for the code ([`LICENSE`](LICENSE)). The working notes are © 2026 the authors, CC BY 4.0.

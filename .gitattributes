@@ -1,0 +1,8 @@
+# The SLURM and shell scripts run on Linux; CRLF would break the interpreter line.
+# Normalize every text file to LF in the repository.
+* text=auto eol=lf
+
+*.pdf binary
+*.png binary
+*.parquet binary
+*.jsonl text eol=lf

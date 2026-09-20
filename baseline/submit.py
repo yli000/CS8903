@@ -4,8 +4,11 @@ import multiprocessing
 import os
 import re
 
+# 比赛提交用的推理。LORA_PATH 留空则跑 base 模型；
+# MAX_LORA_RANK 必须与训练时的 lora_rank 一致。
+
 MODEL_PATH = "./model/Qwen3.5-9B"
-LORA_PATH = "./models/<PLACEHOLDER>"
+LORA_PATH = ""
 DATA_JSON_PATH = "./data/validation_data.json"
 IMAGE_DIR = "./data/images"
 OUTPUT_JSON_PATH = "./results/predictions.json"
@@ -13,7 +16,7 @@ SUBMISSION_JSON_PATH = "./results/submission.json"
 BATCH_SIZE = 50
 TEST_MODE = False
 TEST_SAMPLE_COUNT = 5
-MAX_LORA_RANK = 16
+MAX_LORA_RANK = 64
 INVALID_FALLBACK = "A"
 VALID_ANSWERS = {"A", "B", "C", "D", "E"}
 
