@@ -25,6 +25,24 @@ The test set is gated:
 export HF_TOKEN=...
 ```
 
+## Data and model
+
+`run_inference.py` and `evaluate.py` need nothing downloaded by hand. `run_inference.py` fetches the test
+parquet from the Hugging Face dataset and loads the model by name, so `HF_TOKEN` is enough.
+
+`submit.py` reads a local copy instead, and expects this layout:
+
+| path | contents |
+|---|---|
+| `./model/Qwen3.5-9B/` | base model — `hf download Qwen/Qwen3.5-9B --local-dir ./model/Qwen3.5-9B` |
+| `./models/<run-name>/` | LoRA adapter, when `LORA_PATH` is set |
+| `./data/validation_data.json` | one entry per question, keyed by `id` |
+| `./data/images/` | one image per question, named by the entry's `image` field, or `<id>.png` when it has none |
+
+The Hugging Face dataset ships a single parquet file, `data/test-00000-of-00001.parquet`, so it does not
+produce that layout. `submit.py` matches the organizers' own release, the same JSON-plus-image-folder
+shape their `src/baselines/` scripts take.
+
 ## Run
 
 2× H100-80GB. The 6144-token run takes about 30 minutes.

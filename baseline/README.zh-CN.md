@@ -25,6 +25,21 @@ uv pip install -r requirements.txt \
 export HF_TOKEN=...
 ```
 
+## 数据与模型
+
+`run_inference.py` 和 `evaluate.py` 不需要手动下载任何东西。`run_inference.py` 会自己从 Hugging Face 拉测试集的 parquet，模型按名字加载，有 `HF_TOKEN` 就够。
+
+`submit.py` 读的是本地副本，需要下面这个结构：
+
+| 路径 | 内容 |
+|---|---|
+| `./model/Qwen3.5-9B/` | base 模型 —— `hf download Qwen/Qwen3.5-9B --local-dir ./model/Qwen3.5-9B` |
+| `./models/<run-name>/` | LoRA adapter，设了 `LORA_PATH` 时需要 |
+| `./data/validation_data.json` | 每题一条，用 `id` 作为键 |
+| `./data/images/` | 每题一张图，文件名取该条的 `image` 字段，没有这个字段时用 `<id>.png` |
+
+Hugging Face 上的数据集只发布一个 parquet 文件 `data/test-00000-of-00001.parquet`，得不到上面这个结构。`submit.py` 对应的是任务方自己发布的那份数据，与他们 `src/baselines/` 脚本接受的 JSON 加图片目录结构相同。
+
 ## 运行
 
 2 张 H100-80GB。6144 token 大约 30 分钟。
